@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Control del Hogar</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#141414">
+<style>
+  html, body { margin: 0; height: 100%; background: #0c0c0d; }
+  iframe { border: 0; width: 100%; height: 100%; display: block; }
+  #offline {
+    position: fixed; inset: 0; display: none; flex-direction: column; overflow-y: auto;
+    padding: max(28px, env(safe-area-inset-top)) 22px 40px;
+    background: linear-gradient(140deg, #101012, #1a1a1c); color: #f2f2ef;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  #offline.on { display: flex; }
+  #offline .top { text-align: center; margin-bottom: 22px; }
+  #offline .ico { font-size: 44px; }
+  #offline h1 { font-size: 22px; font-weight: 800; margin: 6px 0 4px; letter-spacing: -0.02em; }
+  #offline p { margin: 0; color: rgba(255,255,255,0.72); font-size: 14px; }
+  #offline .ult { color: #bdbdb8; font-size: 13px; font-weight: 700; margin-top: 8px; }
+  #offline button { background: #f2f2ef; color: #141414; border: 0; border-radius: 999px; padding: 13px 30px; font-size: 15px; font-weight: 800; font-family: inherit; margin: 10px auto 0; display: block; }
+  #offline button:disabled { opacity: 0.6; }
+  #offline h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.14em; color: #84847f; margin: 22px 0 8px; font-weight: 700; }
+  .row { display: flex; align-items: center; gap: 10px; background: #141416; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
+  .row .ic { font-size: 20px; flex: none; }
+  .row .b { flex: 1; min-width: 0; }
+  .row .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .s { color: #84847f; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .chip { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+  .chip.late { background: #d03b3b; color: #fff; } .chip.urgent { background: rgba(248,113,113,0.16); color: #f87171; }
+  .chip.warn { background: rgba(251,191,36,0.16); color: #fbbf24; } .chip.ok { background: rgba(16,185,129,0.16); color: #34d399; }
+  .row .open { background: rgba(255,255,255,0.12); color: #f2f2ef; border: 0; border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 700; margin: 0; }
+  .vacio { color: #84847f; font-size: 13.5px; }
+  #visor { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center; z-index: 50; }
+  #visor.on { display: flex; }
+  #visor img { max-width: 100%; max-height: 100%; }
+  #visor .cerrar { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; background: #f2f2ef; color: #141414; border: 0; border-radius: 999px; width: 40px; height: 40px; font-size: 18px; font-weight: 800; }
+</style>
+</head>
+<body>
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbwVq1AZ7Z9nn2gPki6rbIR7ey9DL9trsi_mrAcaQ9cH5jy4LzdvYLTzuirEy-Zaqvdv/exec" allow="clipboard-write"></iframe>
+
+<div id="offline">
+  <div class="top">
+    <div class="ico">📡</div>
+    <h1>Sin conexión</h1>
+    <p>La app necesita internet para ver y editar tus registros. Aquí tienes lo que ya está guardado en este celular.</p>
+    <div class="ult" id="ult"></div>
+    <button type="button" id="retry">Reintentar</button>
+  </div>
+  <h2>Próximos vencimientos <span id="resFecha"></span></h2>
+  <div id="resumen"><div class="vacio">Sin datos guardados todavía. Abre la app con internet una vez.</div></div>
+  <h2>Documentos en este celular</h2>
+  <div id="docs"><div class="vacio">Aún no guardas documentos. Dentro de la app, pulsa "💾 Guardar" junto a cualquier PDF.</div></div>
+</div>
+
+<div id="visor"><button class="cerrar" id="cerrarVisor">✕</button><img id="visorImg" alt=""></div>
+
+<script>
+(function () {
+  var marco = document.getElementById('app');
+  var EXEC = marco.src;
+  var panel = document.getElementById('offline');
+  var btn = document.getElementById('retry');
+  var ult = document.getElementById('ult');
+  var vivo = false;
+
+  /* ---------- Bóveda local (IndexedDB): documentos y último resumen ---------- */
+  var DBP = null;
+  function db() {
+    if (DBP) return DBP;
+    DBP = new Promise(function (res, rej) {
+      var r = indexedDB.open('control-hogar', 1);
+      r.onupgradeneeded = function () { var d = r.result; if (!d.objectStoreNames.contains('docs')) d.createObjectStore('docs', { keyPath: 'id' }); if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv', { keyPath: 'k' }); };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+    return DBP;
+  }
+  function tx(store, mode, fn) {
+    return db().then(function (d) {
+      return new Promise(function (res, rej) {
+        var t = d.transaction(store, mode); var s = t.objectStore(store); var out = fn(s);
+        t.oncomplete = function () { res(out && out.result !== undefined ? out.result : out); };
+        t.onerror = function () { rej(t.error); };
+      });
+    });
+  }
+  function listarDocs() { return tx('docs', 'readonly', function (s) { return s.getAll(); }).then(function (r) { return (r || []).map(function (d) { return { id: d.id, nombre: d.nombre, mime: d.mime, fecha: d.fecha }; }); }); }
+  function idsDocs() { return listarDocs().then(function (l) { return l.map(function (d) { return d.id; }); }); }
+  function leerDoc(id) { return tx('docs', 'readonly', function (s) { return s.get(id); }); }
+  function guardarDoc(a) {
+    var bin = atob(a.base64); var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var blob = new Blob([bytes], { type: a.mime || 'application/octet-stream' });
+    return tx('docs', 'readwrite', function (s) { s.put({ id: a.id, nombre: a.nombre, mime: a.mime, blob: blob, fecha: Date.now() }); });
+  }
+  function quitarDoc(id) { return tx('docs', 'readwrite', function (s) { s.delete(id); }); }
+  function guardarKV(k, v) { return tx('kv', 'readwrite', function (s) { s.put({ k: k, v: v }); }); }
+  function leerKV(k) { return tx('kv', 'readonly', function (s) { return s.get(k); }).then(function (r) { return r ? r.v : null; }); }
+
+  function abrirDoc(id) {
+    leerDoc(id).then(function (d) {
+      if (!d) return;
+      var url = URL.createObjectURL(d.blob);
+      if (String(d.mime || '').indexOf('image') === 0) {
+        document.getElementById('visorImg').src = url; document.getElementById('visor').classList.add('on');
+        return;
+      }
+      var w = window.open(url, '_blank');
+      if (!w) { var a = document.createElement('a'); a.href = url; a.download = d.nombre || 'documento'; document.body.appendChild(a); a.click(); a.remove(); }
+    });
+  }
+  document.getElementById('cerrarVisor').addEventListener('click', function () { document.getElementById('visor').classList.remove('on'); });
+
+  /* ---------- Puente con la app (dentro del iframe) ---------- */
+  function alApp(msg) { try { marco.contentWindow.postMessage(Object.assign({ app: 'control-hogar-shell' }, msg), '*'); } catch (e) {} }
+  function mandarGuardados() { idsDocs().then(function (ids) { alApp({ tipo: 'guardados', ids: ids }); }); }
+
+  window.addEventListener('message', function (ev) {
+    var m = ev.data;
+    if (!m || m.app !== 'control-hogar') return;
+    if (m.tipo === 'hola') { vivo = true; guardarAcceso(); ocultar(); mandarGuardados(); }
+    else if (m.tipo === 'resumen') { guardarKV('resumen', m.data).catch(function () {}); }
+    else if (m.tipo === 'guardar') {
+      guardarDoc(m.archivo).then(function () { alApp({ tipo: 'guardado-ok', id: m.archivo.id }); mandarGuardados(); })
+        .catch(function (e) { alApp({ tipo: 'error', msg: 'No se pudo guardar en el celular: ' + (e && e.message || e) }); });
+    }
+    else if (m.tipo === 'quitar') { quitarDoc(m.id).then(mandarGuardados); }
+    else if (m.tipo === 'listar') { listarDocs().then(function (l) { alApp({ tipo: 'lista', docs: l }); }); }
+    else if (m.tipo === 'abrir') { abrirDoc(m.id); }
+  });
+
+  /* ---------- Pantalla sin conexión ---------- */
+  function guardarAcceso() { try { localStorage.setItem('ultimoAcceso', String(Date.now())); } catch (e) {} }
+  function textoUltimo() {
+    var t = 0;
+    try { t = Number(localStorage.getItem('ultimoAcceso')) || 0; } catch (e) {}
+    if (!t) return 'Aún no has abierto la app en este dispositivo.';
+    var min = Math.round((Date.now() - t) / 60000);
+    if (min < 1) return 'Último acceso: hace un momento';
+    if (min < 60) return 'Último acceso: hace ' + min + ' min';
+    var hrs = Math.round(min / 60);
+    if (hrs < 24) return 'Último acceso: hace ' + hrs + (hrs === 1 ? ' hora' : ' horas');
+    var d = new Date(t);
+    return 'Último acceso: ' + d.toLocaleDateString('es-MX') + ' a las ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fmtF(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? m[3] + '/' + m[2] + '/' + m[1] : (iso || ''); }
+  function chip(d) {
+    if (d == null) return '';
+    var n = d < 0 ? 'late' : d <= 7 ? 'urgent' : d <= 30 ? 'warn' : 'ok';
+    var txt = d < 0 ? 'Vencido' : d === 0 ? 'Hoy' : d === 1 ? 'Mañana' : 'En ' + d + ' d';
+    return '<span class="chip ' + n + '">' + txt + '</span>';
+  }
+  function pintarOffline() {
+    ult.textContent = textoUltimo();
+    leerKV('resumen').then(function (r) {
+      var box = document.getElementById('resumen');
+      if (!r || !r.pendientes || !r.pendientes.length) { box.innerHTML = '<div class="vacio">' + (r ? 'Nada por vencer en los próximos 90 días.' : 'Sin datos guardados todavía. Abre la app con internet una vez.') + '</div>'; }
+      else {
+        document.getElementById('resFecha').textContent = '· datos del ' + fmtF(r.hoy);
+        box.innerHTML = r.pendientes.map(function (p) { return '<div class="row"><span class="ic">' + (p.icono || '📄') + '</span><div class="b"><div class="t">' + esc(p.titulo) + '</div><div class="s">' + esc(p.sub) + ' · ' + fmtF(p.fecha) + '</div></div>' + chip(p.dias) + '</div>'; }).join('');
+      }
+    }).catch(function () {});
+    listarDocs().then(function (l) {
+      var box = document.getElementById('docs');
+      if (!l.length) return;
+      box.innerHTML = l.map(function (d) { return '<div class="row"><span class="ic">' + (String(d.mime || '').indexOf('image') === 0 ? '🖼️' : '📄') + '</span><div class="b"><div class="t">' + esc(d.nombre) + '</div></div><button class="open" data-id="' + esc(d.id) + '">Abrir</button></div>'; }).join('');
+      box.querySelectorAll('.open').forEach(function (b) { b.addEventListener('click', function () { abrirDoc(b.dataset.id); }); });
+    }).catch(function () {});
+  }
+  function mostrar() { pintarOffline(); panel.classList.add('on'); }
+  function ocultar() { panel.classList.remove('on'); }
+
+  function probar() {
+    if (!navigator.onLine) { mostrar(); return; }
+    fetch(EXEC, { mode: 'no-cors', cache: 'no-store' })
+      .then(function () { if (!vivo) setTimeout(function () { if (!vivo) mostrar(); }, 15000); })
+      .catch(function () { if (!vivo) mostrar(); });
+  }
+
+  window.addEventListener('offline', mostrar);
+  window.addEventListener('online', function () { vivo = false; marco.src = EXEC + (EXEC.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now(); probar(); });
+
+  btn.addEventListener('click', function () {
+    btn.disabled = true; btn.textContent = 'Reintentando…'; vivo = false;
+    marco.src = EXEC + (EXEC.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now();
+    setTimeout(function () { probar(); btn.disabled = false; btn.textContent = 'Reintentar'; }, 2500);
+  });
+
+  probar();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+})();
+</script>
+</body>
+</html>
