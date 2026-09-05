@@ -7,39 +7,39 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=3">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=3">
-<meta name="theme-color" content="#1f2a3c">
+<meta name="theme-color" content="#0f172a">
 <style>
-  html, body { margin: 0; height: 100%; background: #1f2a3c; }
+  html, body { margin: 0; height: 100%; background: #0f172a; }
   iframe { border: 0; width: 100%; height: 100%; display: block; }
   #offline {
     position: fixed; inset: 0; display: none; flex-direction: column; overflow-y: auto;
     padding: max(28px, env(safe-area-inset-top)) 22px 40px;
-    background: linear-gradient(140deg, #1f2a3c, #33445c); color: #fbf5ec;
+    background: linear-gradient(140deg, #0f172a, #1e293b); color: #ffffff;
     font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
   }
   #offline.on { display: flex; }
   #offline .top { text-align: center; margin-bottom: 22px; }
   #offline .ico { font-size: 44px; }
   #offline h1 { font-size: 22px; font-weight: 800; margin: 6px 0 4px; letter-spacing: -0.02em; }
-  #offline p { margin: 0; color: rgba(251,245,236,0.74); font-size: 14px; }
-  #offline .ult { color: #d9cfbf; font-size: 13px; font-weight: 700; margin-top: 8px; }
-  #offline button { background: #d59a5f; color: #1a1208; border: 0; border-radius: 999px; padding: 13px 30px; font-size: 15px; font-weight: 800; font-family: inherit; margin: 10px auto 0; display: block; }
+  #offline p { margin: 0; color: rgba(255,255,255,0.74); font-size: 14px; }
+  #offline .ult { color: #fbbf24; font-size: 13px; font-weight: 700; margin-top: 8px; }
+  #offline button { background: #fbbf24; color: #1a1208; border: 0; border-radius: 999px; padding: 13px 30px; font-size: 15px; font-weight: 800; font-family: inherit; margin: 10px auto 0; display: block; }
   #offline button:disabled { opacity: 0.6; }
-  #offline h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.14em; color: #b8b0a3; margin: 22px 0 8px; font-weight: 700; }
-  .row { display: flex; align-items: center; gap: 10px; background: rgba(251,245,236,0.08); border: 1px solid rgba(251,245,236,0.14); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
+  #offline h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.14em; color: #9aa4b8; margin: 22px 0 8px; font-weight: 700; }
+  .row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
   .row .ic { font-size: 20px; flex: none; }
   .row .b { flex: 1; min-width: 0; }
   .row .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .row .s { color: #b8b0a3; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .s { color: #9aa4b8; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row .chip { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
-  .chip.late { background: #b5403a; color: #fff; } .chip.urgent { background: rgba(245,155,143,0.18); color: #f59b8f; }
-  .chip.warn { background: rgba(242,199,107,0.18); color: #f2c76b; } .chip.ok { background: rgba(127,214,168,0.18); color: #7fd6a8; }
-  .row .open { background: rgba(251,245,236,0.14); color: #fbf5ec; border: 0; border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 700; margin: 0; }
-  .vacio { color: #b8b0a3; font-size: 13.5px; }
+  .chip.late { background: #e0553f; color: #fff; } .chip.urgent { background: rgba(255,138,115,0.18); color: #ff8a73; }
+  .chip.warn { background: rgba(245,192,78,0.18); color: #f5c04e; } .chip.ok { background: rgba(111,211,154,0.18); color: #6fd39a; }
+  .row .open { background: rgba(255,255,255,0.14); color: #ffffff; border: 0; border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 700; margin: 0; }
+  .vacio { color: #9aa4b8; font-size: 13.5px; }
   #visor { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center; z-index: 50; }
   #visor.on { display: flex; }
   #visor img { max-width: 100%; max-height: 100%; }
-  #visor .cerrar { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; background: #fbf5ec; color: #1f2a3c; border: 0; border-radius: 999px; width: 40px; height: 40px; font-size: 18px; font-weight: 800; }
+  #visor .cerrar { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; background: #ffffff; color: #0f172a; border: 0; border-radius: 999px; width: 40px; height: 40px; font-size: 18px; font-weight: 800; }
 </style>
 </head>
 <body>

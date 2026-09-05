@@ -1,6 +1,6 @@
 /* Cascarón de la PWA en caché: la app abre aunque no haya red.
    La app vive en Apps Script; aquí solo se guarda lo de este origen. */
-var CACHE = 'ch-shell-v3';
+var CACHE = 'ch-shell-v4';
 var SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-192-maskable.png', './icon-512-maskable.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
