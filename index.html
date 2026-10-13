@@ -47,18 +47,6 @@
   .chip.warn { background: rgba(245,192,78,0.18); color: #f5c04e; } .chip.ok { background: rgba(111,211,154,0.18); color: #6fd39a; }
   .row .open { background: rgba(255,255,255,0.14); color: #ffffff; border: 0; border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 700; margin: 0; }
   .vacio { color: #9aa4b8; font-size: 13.5px; }
-  /* Compartir: el menú de Android solo abre desde un toque del usuario, y el toque que viene de la app
-     llega por mensaje, sin ese permiso. Por eso se pide un toque más aquí arriba, donde sí vale. */
-  #comp { position: fixed; inset: 0; z-index: 60; display: none; align-items: flex-end; justify-content: center;
-    background: rgba(0,0,0,0.55); padding: 16px; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  #comp.on { display: flex; }
-  #comp .caja { background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.14); border-radius: 22px;
-    padding: 20px; width: 100%; max-width: 420px; margin-bottom: max(12px, env(safe-area-inset-bottom)); }
-  #comp .nom { font-weight: 800; font-size: 16px; overflow-wrap: anywhere; margin-bottom: 4px; }
-  #comp .ay { color: #9aa4b8; font-size: 13.5px; margin: 0 0 16px; }
-  #comp button { width: 100%; border: 0; border-radius: 999px; padding: 14px; font: 800 15px inherit; font-family: inherit; }
-  #comp .si { background: #fbbf24; color: #1a1208; }
-  #comp .no { background: transparent; color: #9aa4b8; margin-top: 6px; font-weight: 700; }
   #visor { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center; z-index: 50; }
   #visor.on { display: flex; }
   #visor img { max-width: 100%; max-height: 100%; }
@@ -71,7 +59,7 @@
 </style>
 </head>
 <body>
-<iframe id="app" src="https://script.google.com/macros/s/AKfycbwVq1AZ7Z9nn2gPki6rbIR7ey9DL9trsi_mrAcaQ9cH5jy4LzdvYLTzuirEy-Zaqvdv/exec" allow="clipboard-write; web-share"></iframe>
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbwVq1AZ7Z9nn2gPki6rbIR7ey9DL9trsi_mrAcaQ9cH5jy4LzdvYLTzuirEy-Zaqvdv/exec" allow="clipboard-write"></iframe>
 
 <div id="offline">
   <div class="top">
@@ -88,7 +76,6 @@
   <div id="docs"><div class="vacio">Aún no guardas documentos. Dentro de la app, pulsa "💾 Guardar" junto a cualquier PDF.</div></div>
 </div>
 
-<div id="comp"><div class="caja"><div class="nom" id="compNom"></div><p class="ay">Se compartirá el archivo completo. Toca Compartir para abrir el menú del celular.</p><button type="button" class="si" id="compSi">Compartir</button><button type="button" class="no" id="compNo">Cancelar</button></div></div>
 <div id="visor"><button class="cerrar" id="cerrarVisor">✕</button><img id="visorImg" alt=""></div>
 <div id="salir" role="status">Pulsa atrás otra vez para salir</div>
 
@@ -168,48 +155,6 @@
     else if (m.tipo === 'quitar') { quitarDoc(m.id).then(mandarGuardados); }
     else if (m.tipo === 'listar') { listarDocs().then(function (l) { alApp({ tipo: 'lista', docs: l }); }); }
     else if (m.tipo === 'abrir') { abrirDoc(m.id); }
-    else if (m.tipo === 'compartir') { prepararCompartir(blobDeBase64(m.archivo), m.archivo.nombre); }
-    else if (m.tipo === 'compartir-local') {
-      leerDoc(m.id).then(function (d) {
-        if (!d) { alApp({ tipo: 'compartir-error', msg: 'La copia guardada en el celular ya no está.' }); return; }
-        prepararCompartir(d.blob, d.nombre);
-      }).catch(function () { alApp({ tipo: 'compartir-error', msg: 'No se pudo leer la copia guardada.' }); });
-    }
-    else if (m.tipo === 'atras-hecho') { atrasHecho(); }
-    else if (m.tipo === 'atras-nada') { clearTimeout(esperaApp); esperaApp = null; avisarSalida(); }
-  });
-
-  /* ---------- Compartir un documento como archivo ---------- */
-  var porCompartir = null;
-  var cajaComp = document.getElementById('comp');
-  function blobDeBase64(a) {
-    var bin = atob(a.base64), bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: a.mime || 'application/octet-stream' });
-  }
-  function prepararCompartir(blob, nombre) {
-    alApp({ tipo: 'compartir-listo' }); // acuse: así la app sabe que este cascarón sí sabe compartir
-    porCompartir = { blob: blob, nombre: nombre || 'documento' };
-    document.getElementById('compNom').textContent = porCompartir.nombre;
-    cajaComp.classList.add('on');
-  }
-  document.getElementById('compNo').addEventListener('click', function () { cajaComp.classList.remove('on'); porCompartir = null; });
-  document.getElementById('compSi').addEventListener('click', function () {
-    if (!porCompartir) return;
-    var f = new File([porCompartir.blob], porCompartir.nombre, { type: porCompartir.blob.type || 'application/octet-stream' });
-    cajaComp.classList.remove('on');
-    if (!navigator.canShare || !navigator.canShare({ files: [f] })) {
-      // Sin menú de compartir (por ejemplo en escritorio): se descarga, que es lo único posible.
-      var url = URL.createObjectURL(porCompartir.blob), a = document.createElement('a');
-      a.href = url; a.download = porCompartir.nombre; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 20000);
-      alApp({ tipo: 'compartir-error', msg: 'Este dispositivo no tiene menú de compartir; el archivo se descargó.' });
-      porCompartir = null; return;
-    }
-    navigator.share({ files: [f], title: porCompartir.nombre })
-      .then(function () { alApp({ tipo: 'compartido' }); })
-      .catch(function (e) { if (!e || e.name !== 'AbortError') alApp({ tipo: 'compartir-error', msg: 'No se pudo compartir: ' + ((e && e.message) || e) }); })
-      .then(function () { porCompartir = null; });
   });
 
   /* ---------- Pantalla sin conexión ---------- */
