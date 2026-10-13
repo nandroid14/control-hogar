@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Control del Hogar</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://script.google.com">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=3">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=3">
 <meta name="theme-color" content="#0f172a">
@@ -20,6 +23,14 @@
   #offline.on { display: flex; }
   #offline .top { text-align: center; margin-bottom: 22px; }
   #offline .ico { font-size: 44px; }
+  /* Mientras Apps Script carga (son 335 KB tras el inicio de sesión), en vez de dejar la pantalla
+     en blanco se enseña lo último guardado en el celular. Se quita en cuanto la app saluda. */
+  #offline.abriendo #retry { display: none; }
+  #offline .giro { width: 30px; height: 30px; margin: 6px auto 0; border: 3px solid rgba(255,255,255,0.22);
+    border-top-color: #fbbf24; border-radius: 50%; animation: gira .8s linear infinite; display: none; }
+  #offline.abriendo .giro { display: block; }
+  #offline.abriendo .ico { display: none; }
+  @keyframes gira { to { transform: rotate(360deg); } }
   #offline h1 { font-size: 22px; font-weight: 800; margin: 6px 0 4px; letter-spacing: -0.02em; }
   #offline p { margin: 0; color: rgba(255,255,255,0.74); font-size: 14px; }
   #offline .ult { color: #fbbf24; font-size: 13px; font-weight: 700; margin-top: 8px; }
@@ -53,8 +64,9 @@
 <div id="offline">
   <div class="top">
     <div class="ico">📡</div>
-    <h1>Sin conexión</h1>
-    <p>La app necesita internet para ver y editar tus registros. Aquí tienes lo que ya está guardado en este celular.</p>
+    <div class="giro"></div>
+    <h1 id="offTitulo">Sin conexión</h1>
+    <p id="offTexto">La app necesita internet para ver y editar tus registros. Aquí tienes lo que ya está guardado en este celular.</p>
     <div class="ult" id="ult"></div>
     <button type="button" id="retry">Reintentar</button>
   </div>
@@ -186,8 +198,19 @@
       box.querySelectorAll('.open').forEach(function (b) { b.addEventListener('click', function () { abrirDoc(b.dataset.id); }); });
     }).catch(function () {});
   }
-  function mostrar() { pintarOffline(); panel.classList.add('on'); }
-  function ocultar() { panel.classList.remove('on'); }
+  var SIN_CONEXION = ['Sin conexión', 'La app necesita internet para ver y editar tus registros. Aquí tienes lo que ya está guardado en este celular.'];
+  var ABRIENDO = ['Abriendo Control del Hogar…', 'Mientras termina de cargar, esto es lo que tenías guardado en este celular.'];
+  function textos(t) { document.getElementById('offTitulo').textContent = t[0]; document.getElementById('offTexto').textContent = t[1]; }
+  function mostrar() { textos(SIN_CONEXION); panel.classList.remove('abriendo'); pintarOffline(); panel.classList.add('on'); }
+  function ocultar() { clearTimeout(tArranque); panel.classList.remove('on'); panel.classList.remove('abriendo'); }
+  /* Arranque: Apps Script tarda en responder en celular (sesión, redirecciones y 335 KB de página).
+     En vez de dejar la pantalla vacía, a los 400 ms se enseña el último resumen guardado, que ya es
+     información útil, y se quita solo cuando la app manda su 'hola'. Los 400 ms evitan el parpadeo
+     cuando la app abre rápido. */
+  var tArranque = setTimeout(function () {
+    if (vivo) return;
+    textos(ABRIENDO); panel.classList.add('abriendo'); pintarOffline(); panel.classList.add('on');
+  }, 400);
 
   function probar() {
     if (!navigator.onLine) { mostrar(); return; }
