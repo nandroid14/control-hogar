@@ -188,6 +188,7 @@
     return new Blob([bytes], { type: a.mime || 'application/octet-stream' });
   }
   function prepararCompartir(blob, nombre) {
+    alApp({ tipo: 'compartir-listo' }); // acuse: así la app sabe que este cascarón sí sabe compartir
     porCompartir = { blob: blob, nombre: nombre || 'documento' };
     document.getElementById('compNom').textContent = porCompartir.nombre;
     cajaComp.classList.add('on');
