@@ -39,6 +39,11 @@
   #visor { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; align-items: center; justify-content: center; z-index: 50; }
   #visor.on { display: flex; }
   #visor img { max-width: 100%; max-height: 100%; }
+  #salir { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 60;
+    background: rgba(15,23,42,0.94); color: #ffffff; border: 1px solid rgba(255,255,255,0.16); border-radius: 18px; padding: 13px 18px;
+    font: 600 13.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; max-width: min(380px, calc(100% - 32px));
+    text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s ease-out; }
+  #salir.on { opacity: 1; }
   #visor .cerrar { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; background: #ffffff; color: #0f172a; border: 0; border-radius: 999px; width: 40px; height: 40px; font-size: 18px; font-weight: 800; }
 </style>
 </head>
@@ -60,6 +65,7 @@
 </div>
 
 <div id="visor"><button class="cerrar" id="cerrarVisor">✕</button><img id="visorImg" alt=""></div>
+<div id="salir" role="status">Pulsa atrás otra vez para salir</div>
 
 <script>
 (function () {
@@ -137,6 +143,8 @@
     else if (m.tipo === 'quitar') { quitarDoc(m.id).then(mandarGuardados); }
     else if (m.tipo === 'listar') { listarDocs().then(function (l) { alApp({ tipo: 'lista', docs: l }); }); }
     else if (m.tipo === 'abrir') { abrirDoc(m.id); }
+    else if (m.tipo === 'atras-hecho') { atrasHecho(); }
+    else if (m.tipo === 'atras-nada') { clearTimeout(esperaApp); esperaApp = null; avisarSalida(); }
   });
 
   /* ---------- Pantalla sin conexión ---------- */
@@ -187,6 +195,30 @@
       .then(function () { if (!vivo) setTimeout(function () { if (!vivo) mostrar(); }, 25000); })
       .catch(function () { if (!vivo) mostrar(); });
   }
+
+  /* ---------- Botón de atrás del celular ----------
+     Sin esto, estando en Inicio el botón de atrás cierra la app de golpe. Se deja un paso de
+     historial "de colchón": al consumirse se le pasa el atrás a la app para que cierre lo que
+     tenga encima (un diálogo, una ficha) o vuelva a Inicio, y entonces se repone el colchón.
+     Si la app contesta que no tenía nada que cerrar, se avisa y NO se repone: así el siguiente
+     atrás sale de verdad. Nunca se llama a history.back() desde código porque Chrome lo ignora
+     cuando no viene de un gesto del usuario. Si en 3 segundos no se vuelve a pulsar, se repone. */
+  var tSalir = null, esperaApp = null;
+  function colchon() { try { history.pushState({ ch: 1 }, ''); } catch (e) {} }
+  function avisarSalida() {
+    var a = document.getElementById('salir');
+    a.classList.add('on');
+    clearTimeout(tSalir);
+    tSalir = setTimeout(function () { a.classList.remove('on'); colchon(); }, 3000);
+  }
+  function atrasHecho() { clearTimeout(esperaApp); esperaApp = null; clearTimeout(tSalir); document.getElementById('salir').classList.remove('on'); colchon(); }
+  colchon();
+  window.addEventListener('popstate', function () {
+    alApp({ tipo: 'atras' });
+    // Si la app no contesta (aún no carga, o está la pantalla sin conexión), se trata como "nada que cerrar".
+    clearTimeout(esperaApp);
+    esperaApp = setTimeout(function () { esperaApp = null; avisarSalida(); }, 450);
+  });
 
   window.addEventListener('offline', mostrar);
   window.addEventListener('online', function () { vivo = false; marco.src = EXEC + (EXEC.indexOf('?') < 0 ? '?' : '&') + 'r=' + Date.now(); probar(); });
